@@ -39,18 +39,18 @@ Chỉ dùng ảnh `sample_id = traffic`, lấy dòng `rank = 1`.
 
 1. Chép record hạng 1: `class_id` = `468` ; `class_name` = `cab` ; `rank` = 1 ; `score` = `0.510915` ; `taxonomy_name` = `ImageNet-1K`
 2. Record này nói về **cả bức ảnh** hay về **một vật thể riêng** trong ảnh? Vì sao bạn nghĩ vậy?  
-   - Record này nói về **cả bức ảnh** (Image-level label).  
-   - *Vì sao:* Tác vụ phân loại ảnh dự đoán xác suất nhãn cho toàn bộ khung hình, trong dữ liệu trả về không có tọa độ vị trí (`bbox_xyxy`) hay đa giác viền (`polygon_xy`) để định vị bất kỳ vật thể riêng lẻ nào.
+   - Record này nói về **toàn bộ bức ảnh**, chứ không nói riêng về một đồ vật nào.  
+   - *Vì sao:* Mô hình chỉ nhìn tổng thể bức ảnh rồi đưa ra một phỏng đoán chung nhất (ở đây là xe taxi - `cab`). Trong kết quả trả về hoàn toàn không có tọa độ khung viền (`bbox_xyxy`) hay vị trí cụ thể nào để chỉ ra một chiếc xe riêng lẻ nằm ở đâu.
 3. Danh sách tên lớp (class list) do đâu mà có: model tự nghĩ ra, hay đi kèm taxonomy/checkpoint?  
-   - Danh sách tên lớp **đi kèm taxonomy cố định của checkpoint** (ở đây là bộ nhãn ImageNet-1K gồm 1000 lớp cố định của checkpoint `yolo11n-cls.pt`), model **không** tự nghĩ ra lớp.
+   - Danh sách tên lớp **có sẵn từ trước, đi kèm với mô hình** (ở đây là danh mục 1.000 lớp của bộ ImageNet-1K gắn liền với checkpoint `yolo11n-cls.pt`). Mô hình **không tự sáng chế** ra tên lớp mà chỉ chọn từ danh mục đã học.
 4. Vì sao cần ghi cả `class_id`, `class_name` và `taxonomy_name`, không chỉ ghi mỗi tên lớp?  
-   - `class_id` là mã số chuẩn hóa để máy tính xử lý logic và huấn luyện không bị ảnh hưởng bởi lỗi chính tả / khoảng trắng.  
-   - `class_name` giúp con người đọc hiểu trực quan.  
-   - `taxonomy_name` xác định rõ ngữ cảnh và không gian nhãn của bộ dữ liệu (tránh nhầm lẫn khi cùng một tên lớp nhưng thuộc hai taxonomy có định nghĩa khác nhau).
+   - `class_id`: Là mã số để máy tính hiểu chính xác, không lo bị nhầm do gõ sai chính tả hay dấu cách.  
+   - `class_name`: Là tên chữ (như `cab`) để con người đọc vào hiểu được ngay.  
+   - `taxonomy_name`: Cho biết tên này lấy từ từ điển/danh mục nào (ví dụ ImageNet-1K hay COCO). Điều này giúp tránh nhầm lẫn khi hai danh mục khác nhau dùng cùng một từ nhưng lại quy định nghĩa khác nhau.
 5. Nếu trong ảnh có nhiều vật / nhiều chủ đề, guideline cần nói rõ điều gì để người gán nhãn chọn **một** lớp?  
-   - Guideline cần nêu rõ quy tắc ưu tiên: chọn vật thể chính nằm ở vị trí trung tâm, chiếm diện tích lớn nhất hoặc là chủ thể hành động chính của bức ảnh. Nếu không thể chọn một đối tượng duy nhất (như cảnh đường phố hỗn hợp), guideline cần yêu cầu gán nhãn bối cảnh chung (street scene/traffic) hoặc chuyển bài toán sang dạng Multi-label / Object Detection.
+   - Bản hướng dẫn (guideline) cần quy định rõ thứ tự ưu tiên: ví dụ chọn đồ vật to nhất, nằm ngay giữa ảnh, hoặc đối tượng nổi bật nhất đập vào mắt người xem. Nếu ảnh quá lộn xộn (như cảnh đường phố hỗn hợp nhiều xe), quy tắc phải nói rõ nên chọn một nhãn bao quát (như đường phố/giao thông) hay chuyển sang dạng bài toán khoanh từng vật thể riêng.
 6. Vì sao không được lấy `score` của model làm ground truth?  
-   - Vì `score` (model confidence) chỉ là xác suất toán học mà mô hình tính toán dựa trên các tham số đã học được, mô hình hoàn toàn có thể tự tin cao (score cao) nhưng vẫn đoán sai. Ground truth phải là sự thật khách quan do con người quan sát, xác minh độc lập theo guideline chuẩn.
+   - Vì `score` (độ tự tin) chỉ là con số thể hiện mô hình "nghĩ" là mình đoán đúng đến mức nào. Mô hình có thể rất tự tin (điểm cao) nhưng thực tế vẫn đoán hoàn toàn sai. Nhãn chuẩn (ground truth) bắt buộc phải do mắt người trực tiếp quan sát và xác nhận cẩn thận theo quy tắc.
 
 ## 2. Phát hiện vật thể
 
@@ -60,17 +60,17 @@ Số lượng prediction theo ngưỡng: xem output ô so sánh `0.20` / `0.35` 
 
 1. Chép một record: `class_name` = `person` ; `score` = `0.91` ; `bbox_xyxy` = `[364.50, 153.20, 482.30, 355.60]` ; `bbox_width` = `117.80` ; `bbox_height` = `202.40`
 2. Giải thích box bằng lời thường: góc trên-trái ở đâu, góc dưới-phải ở đâu, rộng/cao bao nhiêu pixel?  
-   - Hộp chữ nhật bao quanh người đầu bếp: góc trên-trái tại tọa độ pixel $(364.50, 153.20)$, góc dưới-phải tại tọa độ pixel $(482.30, 355.60)$. Chiều rộng của hộp là $117.80$ pixel và chiều cao là $202.40$ pixel. Gốc tọa độ $(0, 0)$ nằm ở góc trên cùng bên trái ảnh.
+   - Khung chữ nhật khoanh người đầu bếp: góc trên-trái nằm tại điểm $(364.50, 153.20)$, góc dưới-phải nằm tại điểm $(482.30, 355.60)$. Khung này rộng $117.80$ pixel và cao $202.40$ pixel. Điểm gốc $(0, 0)$ được tính từ góc trên cùng bên trái của bức ảnh.
 3. Chọn hai ngưỡng (vd. 0.20 và 0.60). Mỗi ngưỡng có bao nhiêu prediction?  
-   - Ngưỡng `0.20`: có **17** vật thể được phát hiện (`['person', 'bowl', 'bowl', 'oven', 'oven', 'person', 'bowl', 'bowl', 'cup', 'cup', 'bowl', 'spoon', ...]`).  
-   - Ngưỡng `0.60`: có **6** vật thể được phát hiện (`['person', 'bowl', 'bowl', 'oven', 'oven', 'person']`).
+   - Ngưỡng dễ tính `0.20`: mô hình tìm thấy **17** đồ vật/người (chấp nhận cả các phỏng đoán còn ngập ngừng, chưa chắc chắn).  
+   - Ngưỡng khắt khe `0.60`: mô hình chỉ giữ lại **6** đồ vật/người (chỉ lấy những trường hợp mô hình rất tự tin).
 4. Khi hạ ngưỡng (giữ nhiều hộp hơn), người **reviewer** phải làm thêm việc gì?  
-   - Khi hạ ngưỡng, reviewer phải rà soát số lượng hộp tăng lên đáng kể (từ 6 lên 17 hộp) và tốn nhiều công sức để loại bỏ các hộp phát hiện nhầm (false positives - nhận diện nhầm chi tiết nền thành vật thể).
+   - Khi hạ ngưỡng, số hộp mô hình đoán tăng vọt (từ 6 lên 17). Người kiểm tra (reviewer) sẽ phải mất thêm nhiều công sức rà soát và xóa bớt những hộp đoán ẩu, đoán sai (những chỗ mô hình nhìn một mảng tường, cái bóng hay nền nhà mà lại tưởng nhầm là đồ vật).
 5. Viết **một quy tắc box** để người gán nhãn làm theo (áp dụng được cho nhiều ảnh, không chỉ ảnh này).  
-   - "Hộp bounding box phải bao bọc sát khít (tight boundary) lấy toàn bộ phần nhìn thấy của vật thể, không để lọt khoảng trống thừa quá 5 pixel và không được cắt lẹm vào phần thân của đối tượng."
+   - "Khung hộp chữ nhật phải ôm vừa khít toàn bộ phần nhìn thấy của đồ vật: không khoanh lẹm vào thân đồ vật, và cũng không để thừa khoảng trống ra ngoài nền xung quanh quá 5 pixel."
 6. Trên ảnh `kitchen`, chỉ ra **một** vật bị che khuất hoặc cắt mép. Bạn sẽ viết thành quy tắc trong guideline, hay đưa lên hỏi Lab Coach (escalation)? Vì sao?  
-   - Trên ảnh `kitchen`, người ở góc trái mép ảnh bị cắt cụt (chỉ nhìn thấy cánh tay chìa ra) và phần chân dưới của người đầu bếp bị che khuất sau chiếc bàn gỗ.  
-   - Trường hợp này cần **Escalation** (hỏi Lab Coach) để thống nhất quy định: có gán nhãn cho người chỉ nhìn thấy một phần cánh tay hay không, và nếu bị che khuất thì hộp box có cần ước lượng vẽ bao trùm cả phần bị che hay chỉ vẽ phần nhìn thấy.
+   - Trên ảnh `kitchen`, người đứng ở mép trái bị cắt cụt (chỉ thấy mỗi cánh tay thò ra), và chân người đầu bếp bị che khuất sau chiếc bàn gỗ.  
+   - Chỗ này cần **đưa lên hỏi Lab Coach (escalation)** để thống nhất quy ước chung: người chỉ thấy mỗi cánh tay thì có khoanh không, và đồ vật bị che thì vẽ khung ôm trọn phần bị giấu hay chỉ khoanh phần mắt nhìn thấy.
 
 ## 3. Phân đoạn theo từng đối tượng
 
@@ -79,15 +79,16 @@ Chỉ dùng ảnh `sample_id = kitchen`. Chọn **một** record.
 
 1. Chép một record: `instance_id` = `kitchen-001` ; `class_name` = `person` ; `score` = `0.90` ; số điểm polygon=`polygon_point_count` = `48` ; 3–5 điểm đầu của `polygon_xy` = `[[482.0, 274.0], [482.0, 273.0], [481.0, 272.0], [481.0, 271.0], [480.0, 270.0]]`
 2. So với box, polygon cho thêm thông tin gì về hình dạng vật thể?  
-   - Polygon cung cấp đường biên hình học thực tế chính xác đến từng pixel theo mép ngoài của đối tượng (dáng người, đường cong của tạp dề), loại bỏ hoàn toàn các vùng không gian nền bị lẫn vào như ở hộp chữ nhật.
+   - Khung hộp chữ nhật chỉ cho biết vùng chữ nhật bao quanh, còn đa giác (polygon) vẽ uốn lượn sát theo mép thật của đồ vật (như đường cong cơ thể, vạt tạp dề). Nhờ đó, ta lấy được đúng hình dáng thực tế mà không bị lẫn mảng nền xung quanh vào.
 3. `instance_id` dùng để làm gì? Nó **không** phải class ID và **không** phải tracking ID — bạn hiểu câu này thế nào?  
-   - `instance_id` dùng để phân biệt và định danh độc lập từng cá thể riêng biệt trong cùng một bức ảnh (ví dụ có 2 người thì người thứ nhất là `kitchen-001`, người thứ hai là `kitchen-002`).  
-   - Nó không phải `class_id` vì không đại diện cho chủng loại đối tượng chung; nó cũng không phải `tracking_id` vì không có tác dụng liên kết hay theo dõi đối tượng di chuyển qua chuỗi các khung hình video liên tiếp.
+   - `instance_id` dùng để đánh số và phân biệt từng đối tượng riêng lẻ trong cùng một ảnh (ví dụ trong bếp có 2 người thì người thứ nhất mang mã `kitchen-001`, người thứ hai là `kitchen-002`).  
+   - Nó không phải `class_id` vì cả 2 người đều chung một loại là `person` (người).  
+   - Nó cũng không phải `tracking_id` vì nó chỉ có giá trị trên bức ảnh tĩnh này, không dùng để theo dõi người đó đang đi đâu trong một đoạn clip dài.
 4. Viết **một quy tắc vẽ biên mask** để người gán nhãn làm theo.  
-   - "Đa giác mặt nạ phải bám sát mép ngoài của từng cá thể vật thể; tại các đường cong hoặc nếp gấp trang phục, annotator phải chấm đủ mật độ điểm để phản ánh đúng biên dạng thực tế, không vẽ lẹm sang đối tượng bên cạnh hoặc nền."
+   - "Đường viền đa giác phải bám sát mép ngoài của đồ vật. Ở các đoạn uốn cong hoặc nếp gấp quần áo, người gán nhãn cần chấm nhiều điểm để viền ôm thật mịn theo dáng thật, không chấm vội vàng làm lẹm vào người hoặc bao thừa mảng nền."
 5. Trên ảnh `kitchen`, chỉ ra **một** chỗ biên mờ / hai vật chạm nhau / bị che. Bạn dùng guideline hay escalation? Vì sao?  
-   - Trên ảnh `kitchen`, chùm chảo và nồi kim loại treo trên xà ngang đè chồng lên nhau, và mép giao giữa mặt bàn bếp gỗ và chiếc bát đặt bên trên bị che một phần.  
-   - Dùng **Escalation** đối với các cụm chảo treo chồng chéo, vì ranh giới kim loại tối màu và bóng phản chiếu khiến mắt thường khó xác định viền của từng chiếc chảo riêng biệt, cần Lab Coach hướng dẫn quy ước gán nhãn cụm (cluster) hay bắt buộc tách rời từng chiếc.
+   - Trên ảnh `kitchen`, chùm xoong chảo kim loại màu tối treo trên giá đè chồng chéo lên nhau, ranh giới bị bóng nhòa rất khó phân biệt viền của từng chiếc.  
+   - Chỗ này cần **đưa lên hỏi Lab Coach (escalation)** để xin quy định: chùm chảo đè nhau này sẽ khoanh chung thành một chùm hay bắt buộc phải ráng tách riêng từng chiếc chảo một.
 
 ## 4. Vòng đời và kiểm tra chất lượng
 
@@ -99,16 +100,16 @@ Lab hôm nay chỉ **xem prediction**. Chuỗi dưới đây là vòng đời pr
 
 | Tác vụ | Ground truth trông như thế nào? (đơn vị nhãn) | Lỗi hoặc chỗ khó quyết định bạn thấy trên ảnh/JSON | Annotator làm gì? | Reviewer xem gì? |
 | --- | --- | --- | --- | --- |
-| Phân loại ảnh | Một nhãn lớp duy nhất gán cho toàn bộ bức ảnh (Image-level label). | Ảnh `traffic` có cả xe buýt, ô tô, xe máy nhưng model ImageNet-1K chỉ đoán lớp `cab` với score ~0.51, bỏ qua các phương tiện khác. | Đọc kỹ guideline về quy tắc chọn đối tượng ưu tiên để chọn 1 lớp đại diện chuẩn nhất từ taxonomy. | Kiểm tra nhãn gán có đúng taxonomy và có tuân thủ đúng quy tắc ưu tiên trong guideline hay không. |
-| Phát hiện vật thể | Tập hợp các hình chữ nhật (Bounding Box kèm nhãn lớp) cho từng vật thể nhìn thấy. | Trên ảnh `kitchen`, người thò tay ở mép trái bị cắt cụt; các chảo treo trên cao chỉ được nhận diện một vài cái, nhiều cái bị bỏ sót. | Vẽ hộp bao khít sát từng đối tượng được nhìn thấy rõ ràng theo đúng tiêu chuẩn pixel. | Soát lỗi bỏ sót vật thể (False Negative), hộp vẽ quá rộng thừa nhiều nền hoặc hộp vẽ sai lớp đối tượng. |
-| Instance segmentation | Tập hợp các đa giác khép kín (`polygon_xy`) kèm nhãn lớp cho từng thực thể đối tượng. | Viền đa giác của các chảo và nồi kim loại treo bị lẫn vào nhau do ánh sáng tối và bị che khuất. | Phóng to ảnh và chấm các điểm đa giác bám sát mép viền của từng đối tượng độc lập. | Kiểm tra độ khít của biên mask (không bị lẹm, không thừa pixel nền) và đảm bảo các vật cùng lớp được tách thành các instance riêng biệt. |
+| Phân loại ảnh | Một tên gọi gán chung cho toàn bộ bức ảnh (ví dụ: ảnh xe taxi). | Ảnh `traffic` có cả xe buýt, ô tô, người đi lại nhưng mô hình chỉ đoán nhãn `cab` với độ tin cậy ~0.51, bỏ qua các phương tiện khác. | Đọc kỹ quy tắc ưu tiên để chọn đúng một tên gọi đại diện chuẩn nhất cho bức ảnh. | Soát xem nhãn được chọn có nằm đúng trong danh mục quy định và có đúng đối tượng chính yếu nhất hay không. |
+| Phát hiện vật thể | Các khung hộp hình chữ nhật khoanh quanh từng đồ vật nhìn thấy, mỗi hộp kèm theo tên gọi. | Trên ảnh `kitchen`, người đứng mép trái chỉ thò một cánh tay ra; nhiều chiếc chảo treo trên cao bị mô hình bỏ sót hoàn toàn. | Cầm chuột khoanh khung ôm vừa vặn từng đồ vật nhìn thấy rõ ràng theo đúng chuẩn. | Rà soát xem có bị sót đồ vật nào không, khung khoanh có bị rộng quá hay cắt lẹm vào đồ vật không. |
+| Instance segmentation | Các đường viền đa giác khép kín ôm sát hình dáng của từng đồ vật riêng lẻ (kèm tên gọi). | Viền của các xoong chảo kim loại treo trên cao bị dính chùm vào nhau do bị bóng và ánh sáng tối. | Phóng to ảnh, chấm cẩn thận từng điểm men theo mép đồ vật để tạo thành viền ôm trọn đối tượng. | Kiểm tra xem viền có bám sát mép thật không (có bị ăn lẹm hay thừa nền không) và các đồ vật đứng gần đã được tách riêng rẽ chưa. |
 
 ## 5. An toàn dữ liệu
 
 1. Quy tắc bảo vệ dữ liệu của bạn cho bài lab này là gì? (viết 1 câu)  
-   - Chỉ sử dụng các ảnh COCO công khai được cung cấp sẵn trong bài lab; tuyệt đối không tải lên dữ liệu cá nhân (khuôn mặt, biển số xe, thông tin định danh PII) hay dữ liệu nội bộ của doanh nghiệp lên môi trường công cộng.
+   - Chỉ dùng đúng các bức ảnh mẫu có sẵn của bài lab; tuyệt đối không tải ảnh cá nhân, mặt người quen, biển số xe hay dữ liệu riêng tư của công ty lên Colab hoặc GitHub.
 2. Nếu gặp ảnh hoặc dữ liệu không đúng phạm vi, bạn sẽ dừng và báo cho ai?  
-   - Dừng ngay thao tác gán nhãn/xử lý và báo cáo ngay lập tức cho Lab Coach / Mentor phụ trách lớp học.
+   - Dừng ngay công việc và báo ngay cho Lab Coach hoặc người hướng dẫn lớp học.
 
 ## 6. Checklist trước khi nộp link repo
 
